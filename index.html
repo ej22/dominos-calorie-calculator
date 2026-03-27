@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Domino's Calorie Calculator</title>
+  <meta name="description" content="Calculate the nutritional content of your Domino's UK order. Choose pizzas, sides, dips and desserts to see calories and full nutritional breakdown." />
+  <link rel="stylesheet" href="src/css/reset.css" />
+  <link rel="stylesheet" href="src/css/variables.css" />
+  <link rel="stylesheet" href="src/css/layout.css" />
+  <link rel="stylesheet" href="src/css/components.css" />
+  <link rel="stylesheet" href="src/css/nutrition-panel.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-logo">
+        <svg class="logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="20" cy="20" r="20" fill="#e31837"/>
+          <circle cx="14" cy="20" r="5" fill="white"/>
+          <circle cx="26" cy="14" r="3" fill="white"/>
+          <circle cx="28" cy="24" r="4" fill="white"/>
+        </svg>
+        <span class="logo-text">Domino's <span class="logo-accent">Calorie Calculator</span></span>
+      </div>
+      <p class="header-sub">UK Nutritional Data · Build your order and see the breakdown</p>
+    </div>
+  </header>
+
+  <!-- ===== MAIN LAYOUT ===== -->
+  <div class="app-layout">
+
+    <!-- ===== SELECTION AREA ===== -->
+    <main class="selection-area">
+
+      <!-- Tab Bar -->
+      <nav class="tab-bar" role="tablist" aria-label="Menu sections">
+        <button class="tab-btn tab-btn--active" role="tab" aria-selected="true" aria-controls="panel-pizza" id="tab-pizza" data-tab="pizza">
+          <span class="tab-icon">🍕</span> Pizzas
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-sides" id="tab-sides" data-tab="sides">
+          <span class="tab-icon">🍗</span> Sides &amp; More
+        </button>
+      </nav>
+
+      <!-- ===== PIZZA TAB ===== -->
+      <section id="panel-pizza" role="tabpanel" aria-labelledby="tab-pizza" class="tab-panel tab-panel--active">
+
+        <!-- Step 1: Category -->
+        <div class="builder-step" id="step-category">
+          <h2 class="step-title"><span class="step-num">1</span> Choose a Category</h2>
+          <div class="card-grid" id="category-grid" role="list">
+            <!-- Populated by pizza-builder.js -->
+          </div>
+        </div>
+
+        <!-- Step 2: Pizza Flavor -->
+        <div class="builder-step builder-step--hidden" id="step-pizza">
+          <h2 class="step-title"><span class="step-num">2</span> Choose Your Pizza</h2>
+          <div class="search-wrap">
+            <input type="search" id="pizza-search" placeholder="Search pizzas…" aria-label="Search pizza flavors" />
+          </div>
+          <div class="card-grid card-grid--pizzas" id="pizza-grid" role="list">
+            <!-- Populated by pizza-builder.js -->
+          </div>
+        </div>
+
+        <!-- Step 3: Size -->
+        <div class="builder-step builder-step--hidden" id="step-size">
+          <h2 class="step-title"><span class="step-num">3</span> Choose a Size</h2>
+          <div class="option-group" id="size-group" role="group" aria-label="Pizza size">
+            <!-- Populated by pizza-builder.js -->
+          </div>
+        </div>
+
+        <!-- Step 4: Crust -->
+        <div class="builder-step builder-step--hidden" id="step-crust">
+          <h2 class="step-title"><span class="step-num">4</span> Choose a Crust</h2>
+          <div class="option-group" id="crust-group" role="group" aria-label="Crust type">
+            <!-- Populated by pizza-builder.js -->
+          </div>
+        </div>
+
+        <!-- Step 5: Cheese -->
+        <div class="builder-step builder-step--hidden" id="step-cheese">
+          <h2 class="step-title"><span class="step-num">5</span> Choose Cheese</h2>
+          <div class="option-group" id="cheese-group" role="group" aria-label="Cheese type">
+            <!-- Populated by pizza-builder.js -->
+          </div>
+        </div>
+
+        <!-- Step 6: Quantity + Add -->
+        <div class="builder-step builder-step--hidden" id="step-add-pizza">
+          <h2 class="step-title"><span class="step-num">6</span> Quantity &amp; Add</h2>
+          <div class="add-row">
+            <div class="qty-stepper" role="group" aria-label="Pizza quantity">
+              <button class="qty-btn" id="pizza-qty-dec" aria-label="Decrease pizza quantity">−</button>
+              <output class="qty-value" id="pizza-qty-value" aria-live="polite">1</output>
+              <button class="qty-btn" id="pizza-qty-inc" aria-label="Increase pizza quantity">+</button>
+            </div>
+            <button class="btn btn--primary" id="add-pizza-btn" disabled>
+              Add to Order
+            </button>
+          </div>
+          <p class="pizza-kcal-preview" id="pizza-kcal-preview" aria-live="polite"></p>
+        </div>
+
+        <!-- Pizza Cart -->
+        <div class="cart-section" id="pizza-cart-section">
+          <h3 class="cart-title">Your Pizzas</h3>
+          <ul class="cart-list" id="pizza-cart-list" aria-label="Added pizzas">
+            <!-- Populated by pizza-builder.js -->
+          </ul>
+          <p class="cart-empty" id="pizza-cart-empty">No pizzas added yet.</p>
+        </div>
+
+      </section>
+
+      <!-- ===== SIDES TAB ===== -->
+      <section id="panel-sides" role="tabpanel" aria-labelledby="tab-sides" class="tab-panel" hidden>
+
+        <!-- Category sub-tabs -->
+        <nav class="sub-tab-bar" role="tablist" aria-label="Sides categories" id="sides-sub-tabs">
+          <!-- Populated by sides-builder.js -->
+        </nav>
+
+        <!-- Items Grid -->
+        <div class="sides-items" id="sides-items-area">
+          <!-- Populated by sides-builder.js -->
+        </div>
+
+        <!-- Sides Cart -->
+        <div class="cart-section" id="sides-cart-section">
+          <h3 class="cart-title">Your Sides &amp; More</h3>
+          <ul class="cart-list" id="sides-cart-list" aria-label="Added sides">
+            <!-- Populated by sides-builder.js -->
+          </ul>
+          <p class="cart-empty" id="sides-cart-empty">No sides added yet.</p>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- ===== NUTRITION PANEL ===== -->
+    <aside class="nutrition-panel" id="nutrition-panel" aria-label="Nutritional summary">
+
+      <!-- Mobile toggle bar -->
+      <button class="panel-toggle" id="panel-toggle" aria-expanded="false" aria-controls="panel-body">
+        <span class="panel-toggle-label">Total</span>
+        <output class="panel-toggle-kcal" id="panel-kcal-bar" aria-live="polite">0 kcal</output>
+        <span class="panel-toggle-chevron" aria-hidden="true">▲</span>
+      </button>
+
+      <!-- Panel body -->
+      <div class="panel-body" id="panel-body">
+        <div class="panel-header">
+          <h2 class="panel-title">Nutritional Summary</h2>
+          <button class="btn btn--ghost btn--sm" id="clear-all-btn">Clear all</button>
+        </div>
+
+        <!-- Calorie hero -->
+        <div class="kcal-hero">
+          <output class="kcal-total" id="kcal-total" aria-live="polite" aria-label="Total calories">0</output>
+          <span class="kcal-label">kcal</span>
+          <div class="kcal-ref">
+            <span class="kcal-ref-bar" id="kcal-ref-bar" style="width:0%" role="meter" aria-valuenow="0" aria-valuemin="0" aria-valuemax="2000" aria-label="Percentage of 2000 kcal daily reference"></span>
+            <span class="kcal-ref-text" id="kcal-ref-text">0% of 2000 kcal reference</span>
+          </div>
+        </div>
+
+        <!-- Nutrient breakdown table -->
+        <table class="nutrient-table" aria-label="Nutritional breakdown">
+          <thead>
+            <tr>
+              <th scope="col">Nutrient</th>
+              <th scope="col" class="text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="nutrient-tbody">
+            <!-- Populated by nutrition-panel.js -->
+          </tbody>
+        </table>
+
+        <!-- Order breakdown -->
+        <div class="order-breakdown" id="order-breakdown">
+          <h3 class="breakdown-title">Order Breakdown</h3>
+          <ul class="breakdown-list" id="breakdown-list" aria-label="Items in your order">
+            <!-- Populated by nutrition-panel.js -->
+          </ul>
+          <p class="breakdown-empty" id="breakdown-empty">Add items to see your order breakdown.</p>
+        </div>
+
+        <p class="panel-disclaimer">
+          Nutritional values are approximate. Handmade items may vary. Dips not included unless selected.
+        </p>
+      </div>
+
+    </aside>
+
+  </div><!-- /.app-layout -->
+
+  <script type="module" src="src/js/app.js"></script>
+</body>
+</html>
