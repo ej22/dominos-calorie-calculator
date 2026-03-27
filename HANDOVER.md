@@ -1,7 +1,7 @@
 # HANDOVER DOCUMENT — Domino's Calorie Calculator
 
 > Written for a future Claude instance (or developer) picking up this project.
-> Last updated: 2026-03-27
+> Last updated: 2026-03-27 (updated after full implementation complete)
 
 ---
 
@@ -120,47 +120,85 @@ Two main tabs:
 
 ### 5b. Pizza Builder State Machine
 
-Defined in `src/js/pizza-builder.js`:
+Defined in `src/js/pizza-builder.js`. Module-level state object:
 
 ```javascript
-const pizzaState = {
-  category: null,   // "standard" | "gluten_free" | "plant_based" | "cheeky_little" | "delight"
-  pizzaId: null,    // pizza's id field e.g. "american_hot"
-  size: null,       // "personal" | "small" | "medium" | "large"
-  crustId: null,    // "classic" | "italian" | "stuffed" | "thin" | "gf_base" | "plant_based"
-  cheeseId: null,   // "standard" | "reduced_fat" | "plant_based"
-  quantity: 1
+const state = {
+  categoryId: null,  // "standard" | "gluten_free" | "plant_based" | "cheeky_little" | "delight"
+  pizzaId:    null,  // pizza's id field e.g. "american_hot"
+  size:       null,  // "personal" | "small" | "medium" | "large"
+  crustId:    null,  // "classic" | "italian" | "stuffed" | "thin" | "gf_base"
+  cheeseId:   null,  // "standard" | "reduced_fat" | "plant_based"
+  quantity:   1,
 };
 ```
 
-**Cascade invalidation:** When `category` or `size` changes, if the currently selected `crustId` or `cheeseId` is not valid for the new selection, they reset to `null`. This prevents impossible lookups.
+**Cascade invalidation:** Each selection step clears all downstream state fields before rendering the next step. E.g. selecting a new size resets `crustId` and `cheeseId` to `null`.
 
-**Variant lookup:** `pizza.variants[`${size}__${crustId}__${cheeseId}`]` returns the nutrition object or `undefined` if unavailable.
+**Step visibility:** Steps are shown/hidden by toggling the `builder-step--hidden` CSS class. `hideStepsFrom(stepId)` hides a step and all steps after it in the pipeline.
 
-### 5c. Sides Cart
+**Auto-select:** If a step has only one valid (non-disabled) option button, it is selected automatically and the next step is shown immediately — the user doesn't have to click it. This handles categories like Gluten Free (only one crust type) and Plant Based (only plant-based cheese).
+
+**Crust/cheese availability check:** A crust is available for a given size if any variant key in `pizza.variants` matches `{size}__{crustId}__*`. A cheese option is available if the exact key `{size}__{crustId}__{cheeseId}` exists in `pizza.variants`.
+
+**Variant lookup:** `pizza.variants[`${size}__${crustId}__${cheeseId}`]` returns the nutrition object or `undefined`. The "Add to Order" button is `disabled` when this returns `undefined`.
+
+**Pizza cart:** Each pizza added becomes `{ id, label, quantity, nutrition, kcal }` pushed into a module-level `cart` array. The cart renders as a `<ul>` with per-item quantity steppers and remove buttons. Fires `pizza-cart:changed` CustomEvent on every mutation.
+
+**Pizza search:** `<input id="pizza-search">` filters the pizza grid by toggling `hidden` on non-matching cards. No state change — purely visual filter.
+
+### 5c. Sides Builder
 
 Defined in `src/js/sides-builder.js`:
 
+**Sub-tabs:** One `<button>` per category in `SIDES.categories`, rendered into `#sides-sub-tabs`. Clicking a tab calls `renderItems(catId)` which replaces the contents of `#sides-items-area`.
+
+**Item cards:** Each item renders as a `.side-card` with:
+- A `<select>` dropdown if it has >1 variant, or a static label if only one
+- A live kcal preview that updates when the dropdown changes
+- An "Add" button with 800ms "Added!" feedback animation
+
+**Sides cart:** Same structure as the pizza cart. Each entry: `{ id, label, quantity, nutrition, kcal }`. Fires `sides-cart:changed` CustomEvent on mutation.
+
+### 5d. Calculator
+
+Defined in `src/js/calculator.js`. Pure functions — no DOM access:
+
 ```javascript
-const cart = [];
-// Each entry: { itemId, variantId, label, quantity, nutrition: { kcal, fat_g, ... } }
+// Sums nutrition × quantity across all selections
+export function computeTotals(pizzaSelections, cartItems) { ... }
+
+// Calls computeTotals, then fires the DOM event
+export function dispatchNutritionUpdate(pizzaSelections, cartItems) { ... }
 ```
 
-Users add items; the cart renders as a list below the selector with remove (×) and quantity controls.
+### 5e. Event Bus
 
-### 5d. Event Bus
-
-The app uses a single custom DOM event for communication:
+Three custom DOM events coordinate the modules:
 
 ```javascript
-// Calculator fires:
+// calculator.js fires after every cart change:
 document.dispatchEvent(new CustomEvent('nutrition:updated', { detail: totals }));
 
-// Nutrition panel listens:
-document.addEventListener('nutrition:updated', (e) => { /* render */ });
+// pizza-builder.js fires on every pizza cart mutation:
+document.dispatchEvent(new CustomEvent('pizza-cart:changed', { detail: cart }));
+
+// sides-builder.js fires on every sides cart mutation:
+document.dispatchEvent(new CustomEvent('sides-cart:changed', { detail: cart }));
 ```
 
-`totals` shape: `{ kcal, fat_g, sat_g, carb_g, sugars_g, fibre_g, protein_g, salt_g, sodium_g }`
+`app.js` listens for both `pizza-cart:changed` and `sides-cart:changed`, then calls `dispatchNutritionUpdate(getPizzaCart(), getSidesCart())` and `renderBreakdown(allItems)`.
+
+`totals` shape: `{ kcal, fat_g, sat_g, carb_g, sugars_g, fibre_g, protein_g, salt_g }` (values rounded to 1 d.p.)
+
+### 5f. Nutrition Panel
+
+Defined in `src/js/nutrition-panel.js`:
+
+- `initNutritionPanel(onClearAll)` — populates the nutrient `<tbody>` dynamically, binds the mobile toggle and "Clear all" button, and starts listening for `nutrition:updated`
+- `renderBreakdown(items)` — called from `app.js` to update the order breakdown list (`#breakdown-list`)
+- Mobile expand/collapse: clicking `#panel-toggle` toggles `.panel--expanded` on `#nutrition-panel` and updates `aria-expanded`
+- The kcal reference bar (`#kcal-ref-bar`) gets CSS class `kcal-ref-bar--warn` at >75% and `kcal-ref-bar--over` at 100%+ of the 2000 kcal reference
 
 ### 5e. Responsive Layout
 
@@ -189,11 +227,15 @@ docker compose up --build
 ### Dockerfile
 ```dockerfile
 FROM nginx:1.27-alpine
+RUN rm /etc/nginx/conf.d/default.conf
 COPY index.html /usr/share/nginx/html/index.html
 COPY src/ /usr/share/nginx/html/src/
+COPY public/ /usr/share/nginx/html/public/
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 ```
+
+Note: `public/` (the PDFs) is included in the image so they are browsable at `/public/nutrition_pizzas.pdf` etc. if needed for reference.
 
 ### nginx.conf Key Settings
 - `application/javascript` MIME type for `.js` files (required for ES modules)
@@ -209,17 +251,18 @@ EXPOSE 80
 
 **Branch:** `master`
 
-**Commit history shows the build sequence:**
-1. `chore: initialise project structure and design system` — HTML skeleton, CSS design system
-2. `chore: create GitHub repository and push initial commit`
-3. `feat: add pizza nutritional data as ES module`
-4. `feat: add sides and desserts nutritional data as ES module`
-5. `feat: add HTML structure and CSS design system`
-6. `feat: implement pizza builder with cascade selection logic`
-7. `feat: implement sides builder with multi-item cart`
-8. `feat: implement calorie calculator and nutrition summary panel`
-9. `feat: add Docker configuration`
-10. `docs: add README and HANDOVER documentation`
+**Actual commit history (git log --oneline):**
+```
+f5a051c docs: add README with setup instructions and project overview
+9bc0fb2 feat: add Docker configuration (nginx alpine, port 8080)
+062bde3 feat: implement pizza builder, sides builder, calculator and nutrition panel
+47d201d feat: add sides and desserts nutritional data as ES module
+b7405ce feat: add pizza nutritional data as ES module
+811b9bf docs: add comprehensive HANDOVER.md
+a458d56 chore: initialise project structure and design system
+```
+
+All JS modules (pizza-builder, sides-builder, calculator, nutrition-panel, app) were committed as a single commit (`062bde3`) because they were all written in the same session and are tightly interdependent.
 
 ---
 
@@ -301,17 +344,23 @@ EXPOSE 80
 ## 11. Features Implemented
 
 - [x] Pizza builder: category → flavor → size → crust → cheese → quantity
-- [x] Pizza search/filter
+- [x] Auto-select single-option steps (e.g. Gluten Free only has one crust — skips that click)
+- [x] Unavailable crust/cheese combos are `disabled`, not hidden, with `aria-disabled`
+- [x] Pizza search/filter (filters card grid visually, no state change)
+- [x] Kcal preview updates live as quantity stepper changes
 - [x] Sides builder: category sub-tabs → item cards → variant dropdown → add to cart
-- [x] Multi-item cart with quantity controls and remove
-- [x] Live calorie total in nutrition panel
-- [x] Full nutrient breakdown table (fat, sat fat, carbs, sugars, fibre, protein, salt, sodium)
-- [x] 2000 kcal daily reference progress bar
-- [x] Order breakdown list in panel
-- [x] Clear all button
-- [x] Mobile responsive (bottom sheet + drawer)
-- [x] Keyboard accessible (focus styles, aria-labels, aria-live regions)
-- [x] Docker + Nginx deployment
+- [x] "Added!" button feedback animation (800ms) on sides add
+- [x] Multi-item pizza cart and multi-item sides cart, both with quantity +/- and remove
+- [x] Live calorie total in nutrition panel (updates on every cart mutation)
+- [x] Full nutrient breakdown table (fat, saturates, carbs, sugars, fibre, protein, salt)
+- [x] 2000 kcal daily reference progress bar with warn (>75%) and over (>100%) colour states
+- [x] Order breakdown list in panel (separate pizza and sides entries)
+- [x] "Clear all" button wipes both carts and resets the panel
+- [x] Mobile responsive (collapsible bottom sheet panel, single-column layout)
+- [x] Desktop sticky sidebar panel (always visible at ≥768px)
+- [x] Keyboard accessible (focus styles, `aria-label`, `aria-live`, `aria-pressed`, `role` attributes)
+- [x] Docker + Nginx deployment (port 8080, gzip, correct ES module MIME type)
+- [x] README.md with setup instructions
 
 ---
 
@@ -347,6 +396,16 @@ EXPOSE 80
 **Problem:** First attempt at `gh auth login --web` timed out before the user could complete browser auth.
 
 **Fix:** Retried the command and the user completed auth on the second attempt.
+
+### Element ID mismatch between index.html and nutrition-panel.js
+**Problem:** The first draft of `nutrition-panel.js` used different element IDs than those that had been baked into `index.html` (e.g. `total-kcal` vs `kcal-total`, `kcal-bar-fill` vs `kcal-ref-bar`, `mobile-kcal` vs `panel-kcal-bar`). The panel would have silently failed to update anything.
+
+**Fix:** `nutrition-panel.js` was rewritten immediately to use the correct IDs from `index.html` before any browser testing. The nutrient table `<tbody>` rows are now populated dynamically by `initNutritionPanel()` rather than being hard-coded in HTML — this reduces the surface for future ID drift.
+
+### Context window exhaustion mid-implementation
+**Problem:** The first Claude session ran out of context before any JS modules were written. The project was fully planned and data files were complete, but none of the interactive logic existed.
+
+**Fix:** A HANDOVER.md was written and committed while context remained, allowing the next session to resume cleanly with full context on what had been done and what remained.
 
 ---
 
